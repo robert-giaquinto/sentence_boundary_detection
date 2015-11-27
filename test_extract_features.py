@@ -23,7 +23,8 @@ def test_analyze_tokens():
 		0, 0, 0,
 		0, 0, 0, 0, 0,
 		0, 4, 1]
-	results = analyze_tokens(tests, stopwords, syllable_dict)
+	# skip tests on the word fequency stats
+	results = analyze_tokens(tests, stopwords, syllable_dict)[0:22]
 	rval = 1.0 * sum([e == r for e, r in zip(expected, results)]) / len(expected)
 	return rval
 
