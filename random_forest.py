@@ -3,9 +3,7 @@ import pandas as pd
 import numpy as np
 from sklearn.cross_validation import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-import pyparsing
 import matplotlib.pyplot as plt
-import time
 
 # implement a standard random forest algorithm to evaluate current feature set
 

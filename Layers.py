@@ -32,10 +32,19 @@ class Input_Layer(object):
 		self.lambda_penalty = lambda_penalty
 
 	def feed_forward(self, x, backprop):
-		pass
+		num_obs = x.shape[1]
+		z = np.dot(self.W, x) + np.tile(self.b, (1, num_obs))
+		a_out = self.activation(z)
+		self.loss = self.lambda_penalty * (self.W ** 2).sum()
+		self.next_layer.feed_forward(a_out, backprop)
+		if backprop:
+			self._backpropagate(x)
 
 	def _backpropagate(self, x):
-		pass
+		delta = self.next_layer.get_delta()
+		num_obs = x.shape[1]
+		self.W -= self.alpha * np.dot(delta, x.T) / num_obs
+		self.b -= self.alpha * np.sum(delta, axis=1).reshape(self.n_out, 1) / num_obs
 
 
 class Hidden_Layer(object):
@@ -61,10 +70,20 @@ class Hidden_Layer(object):
 		return self.delta
 
 	def _backpropagate(self, a_in):
-		pass
+		num_obs = a_in.shape[1]
+		delta = self.next_layer.get_delta()
+		self.W -= self.alpha * np.dot(delta, a_in.T) / num_obs
+		self.b -= self.alpha * np.sum(delta, axis=1).reshape((self.n_out, 1)) / num_obs
+		self.delta = np.dot(self.W.T, delta) * self.d_activation(a_in)
 
 	def feed_forward(self, a_in, backprop):
-		pass
+		num_obs = a_in.shape[1]
+		z = np.dot(self.W, a_in) + np.tile(self.b, (1, num_obs))
+		a_out = self.activation(z)
+		self.loss = self.lambda_penalty * (self.W ** 2).sum()
+		self.next_layer.feed_forward(a_out, backprop)
+		if backprop:
+			self._backpropagate(a_in)
 
 
 class Output_Layer(object):
@@ -89,6 +108,9 @@ class Output_Layer(object):
 		:return:
 		"""
 		return self.delta
+
+	def get_yhat(self):
+		return self.yhat
 
 	def _backpropagate(self, a_in):
 		num_obs = a_in.shape[1]
