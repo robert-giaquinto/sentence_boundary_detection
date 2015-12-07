@@ -4,7 +4,6 @@ from helper_funcs import *
 
 
 class Base_Layer(object):
-
 	def __init__(self, activation, d_activation):
 		self.activation = activation
 		self.d_activation = d_activation
@@ -17,50 +16,61 @@ class Base_Layer(object):
 
 
 class Input_Layer(object):
-	def __init__(self, n_in, n_out, activation, d_activation, next_layer, alpha=0.1, lambda_penalty=0.0001, random_state=None):
+	def __init__(self, num_inputs, num_outputs, activation, d_activation, next_layer,
+			alpha=0.1, lambda_penalty=0.0001, random_state=None):
+		# initialize weights and biases based on deep learning book recommendation
 		self.W = 4 * np.asarray(random_state.uniform(
-				low=-np.sqrt(6.0 / (n_in + n_out)),
-				high=np.sqrt(6.0 / (n_in + n_out)),
-				size=(n_out, n_in)), dtype=np.float64)
-		self.b = np.zeros(n_out, dtype=np.float64).reshape((n_out, 1))
-		self.n_in = n_in
-		self.n_out = n_out
+				low=-np.sqrt(6.0 / (num_inputs + num_outputs)),
+				high=np.sqrt(6.0 / (num_inputs + num_outputs)),
+				size=(num_outputs, num_inputs)), dtype=np.float64)
+		self.b = np.zeros(num_outputs, dtype=np.float64).reshape((num_outputs, 1))
+		self.num_inputs = num_inputs
+		self.num_outputs = num_outputs
 		self.activation = activation
 		self.d_activation = d_activation
 		self.next_layer = next_layer
 		self.alpha = alpha
 		self.lambda_penalty = lambda_penalty
+
+	def _backpropagate(self, x):
+		delta_hidden = self.next_layer.get_delta()
+		num_obs = x.shape[1]
+		self.W -= self.alpha * ((np.dot(delta_hidden, x.T) / num_obs) + self.lambda_penalty * self.W)
+		self.b -= self.alpha * (np.sum(delta_hidden, axis=1).reshape(self.num_outputs, 1) / num_obs)
 
 	def feed_forward(self, x, backprop):
 		num_obs = x.shape[1]
-		z = np.dot(self.W, x) + np.tile(self.b, (1, num_obs))
-		a_out = self.activation(z)
-		self.loss = self.lambda_penalty * (self.W ** 2).sum()
-		self.next_layer.feed_forward(a_out, backprop)
+		z1 = np.dot(self.W, x) + np.tile(self.b, (1, num_obs))
+		a1 = self.activation(z1)
+		self.loss = self.lambda_penalty / 2 * (self.W ** 2).sum()
+		self.next_layer.feed_forward(a1, backprop)
 		if backprop:
 			self._backpropagate(x)
 
-	def _backpropagate(self, x):
-		delta = self.next_layer.get_delta()
-		num_obs = x.shape[1]
-		self.W -= self.alpha * np.dot(delta, x.T) / num_obs
-		self.b -= self.alpha * np.sum(delta, axis=1).reshape(self.n_out, 1) / num_obs
-
 
 class Hidden_Layer(object):
-	def __init__(self, n_in, n_out, activation, d_activation, next_layer, alpha=0.1, lambda_penalty=0.0001, random_state=None):
+	"""
+	Hidden layer of multilayer perceptron.
+	Implements a softmax activation function for classification, however
+	paramter activation refers to the activation function used between
+	input and hidden layers.
+	"""
+	def __init__(self, num_inputs, num_outputs, activation, d_activation, next_layer,
+			alpha=0.1, lambda_penalty=0.0001, random_state=None):
+		# initialize weights and biases based on deep learning book recommendation
 		self.W = np.asarray(random_state.uniform(
-				low=-np.sqrt(6.0 / (n_in + n_out)),
-				high=np.sqrt(6.0 / (n_in + n_out)),
-				size=(n_out, n_in)), dtype=np.float64) * 4.0
-		self.b = np.zeros(n_out, dtype=np.float64).reshape((n_out, 1))
-		self.n_in = n_in
-		self.n_out = n_out
+				low=-np.sqrt(6.0 / (num_inputs + num_outputs)),
+				high=np.sqrt(6.0 / (num_inputs + num_outputs)),
+				size=(num_outputs, num_inputs)), dtype=np.float64) * 4.0
+		self.b = np.zeros(num_outputs, dtype=np.float64).reshape((num_outputs, 1))
+		self.num_inputs = num_inputs
+		self.num_outputs = num_outputs
 		self.activation = activation
 		self.d_activation = d_activation
 		self.next_layer = next_layer
 		self.alpha = alpha
 		self.lambda_penalty = lambda_penalty
+		self.loss = None
 
 	def get_delta(self):
 		"""
@@ -69,34 +79,31 @@ class Hidden_Layer(object):
 		"""
 		return self.delta
 
-	def _backpropagate(self, a_in):
-		num_obs = a_in.shape[1]
+	def _backpropagate(self, a1):
+		num_obs = a1.shape[1]
 		delta = self.next_layer.get_delta()
-		self.W -= self.alpha * np.dot(delta, a_in.T) / num_obs
-		self.b -= self.alpha * np.sum(delta, axis=1).reshape((self.n_out, 1)) / num_obs
-		self.delta = np.dot(self.W.T, delta) * self.d_activation(a_in)
+		self.W -= self.alpha * ((np.dot(delta, a1.T) / num_obs) + self.lambda_penalty * self.W)
+		self.b -= self.alpha * (np.sum(delta, axis=1).reshape((self.num_outputs, 1)) / num_obs)
+		self.delta = np.dot(self.W.T, delta) * self.d_activation(a1)
 
-	def feed_forward(self, a_in, backprop):
-		num_obs = a_in.shape[1]
-		z = np.dot(self.W, a_in) + np.tile(self.b, (1, num_obs))
-		a_out = self.activation(z)
-		self.loss = self.lambda_penalty * (self.W ** 2).sum()
-		self.next_layer.feed_forward(a_out, backprop)
+	def feed_forward(self, a1, backprop):
+		num_obs = a1.shape[1]
+		z2 = np.dot(self.W, a1) + np.tile(self.b, (1, num_obs))
+		exp_z = np.exp(z2)
+		a2 = exp_z / np.sum(exp_z, axis=0, keepdims=True)
+		self.loss = self.lambda_penalty / 2 * (self.W ** 2).sum()
+		self.next_layer.feed_forward(a2, backprop)
 		if backprop:
-			self._backpropagate(a_in)
+			self._backpropagate(a1)
 
 
 class Output_Layer(object):
-	def __init__(self, n_in, activation, d_activation, compute_error, compute_loss):
-		self.n_in = n_in
-		self.activation = activation
-		self.d_activation = d_activation
-		self.compute_error = compute_error
-		self.compute_loss = compute_loss
+	def __init__(self, num_inputs):
+		self.num_inputs = num_inputs
 
 	def set_y(self, y):
 		"""
-		initialize target values at output layer
+		initialize target values at output layer.
 		:param y:
 		:return:
 		"""
@@ -104,7 +111,7 @@ class Output_Layer(object):
 
 	def get_delta(self):
 		"""
-		pass delta for gradient descent to hidden layers
+		pass delta for gradient descent to hidden layers.
 		:return:
 		"""
 		return self.delta
@@ -112,12 +119,14 @@ class Output_Layer(object):
 	def get_yhat(self):
 		return self.yhat
 
-	def _backpropagate(self, a_in):
-		num_obs = a_in.shape[1]
-		self.delta = self.compute_error(self.y, a_in)
-		self.loss = self.compute_loss(self.y, a_in) / num_obs
+	def _backpropagate(self, a2):
+		num_obs = a2.shape[1]
+		self.loss = -1.0 * (np.sum(np.multiply(self.y, np.log(a2)))) / num_obs
+		# softmax:
+		a2[self.y[1, :], range(num_obs)] -= 1
+		self.delta = a2
 
-	def feed_forward(self, a_in, backprop):
-		self.yhat = a_in
+	def feed_forward(self, a2, backprop):
+		self.yhat = a2
 		if backprop:
-			self._backpropagate(a_in)
+			self._backpropagate(a2)

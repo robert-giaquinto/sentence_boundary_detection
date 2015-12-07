@@ -4,7 +4,7 @@ import random
 import math
 
 
-def split_validation(y, pct_validation):
+def split_validation(y, pct_validation, random_seed):
 	"""
 	Statified sampling of indices to create equal representation of y in each split
 	:param y:
@@ -74,7 +74,7 @@ def d_sigmoid(x):
 
 def d_tanh(x):
 	# derivative of tanh activation function
-	return np.ones(x.shape) - (x ** 2)
+	return np.ones(x.shape) - np.power(x, 2)
 
 def squared_error(y, est):
 	num_classes = y.shape[1]

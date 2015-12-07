@@ -26,30 +26,33 @@ class MLP(object):
 		else:
 			random_state = np.random.RandomState(123)
 
-		# pass the loss and error functions to use
-		compute_error = lambda yhat, y: np.multiply(y - yhat, d_activation(y))
-		compute_loss = lambda yhat, y: 0.5 * np.sum((yhat - y) ** 2)
-
+		# define the activation function used between input and hidden layers
 		if self.activation == "sigmoid":
-			activation = sigmoid
-			d_activation = d_sigmoid
+			activation_func = sigmoid
+			d_activation_func = d_sigmoid
 		elif self.activation == "tanh":
-			activation = np.tanh
-			d_activation = d_tanh
+			activation_func = np.tanh
+			d_activation_func = d_tanh
 
 		num_layers = len(architecture)
 		for i in range(num_layers)[::-1]:
 			if i == num_layers - 1:
 				# output layer
-				self.layers.append(Output_Layer(architecture[i], activation, d_activation, compute_error=compute_error, compute_loss=compute_loss))
+				self.layers.append(Output_Layer(num_inputs=architecture[i]))
 			elif i == 0:
 				# input layer
-				self.layers.append(Input_Layer(architecture[i], architecture[i + 1], activation, d_activation, self.layers[-1], alpha=self.alpha, lambda_penalty=self.lambda_penalty, random_state=random_state))
+				self.layers.append(Input_Layer(num_inputs=architecture[i], num_outputs=architecture[i + 1],
+					activation=activation_func, d_activation=d_activation_func,
+					next_layer=self.layers[-1], alpha=self.alpha, lambda_penalty=self.lambda_penalty,
+					random_state=random_state))
 			else:
 				# hidden layer(s)
-				self.layers.append(Hidden_Layer(architecture[i], architecture[i + 1], activation, d_activation, self.layers[-1], alpha=self.alpha, lambda_penalty=self.lambda_penalty, random_state=random_state))
+				self.layers.append(Hidden_Layer(num_inputs=architecture[i], num_outputs=architecture[i + 1],
+					activation=activation_func, d_activation=d_activation_func,
+					next_layer=self.layers[-1], alpha=self.alpha, lambda_penalty=self.lambda_penalty,
+					random_state=random_state))
 
-	def fit(self, x, y, epochs, batch_size=None, pct_validation=.25):
+	def fit(self, x, y, epochs, batch_size, stall_limit=None, pct_validation=0.1):
 		# initialize network architecture
 		architecture = [x.shape[0]] + self.num_hidden_units + [y.shape[0]]
 		self._initialize_layers(architecture)
@@ -57,15 +60,14 @@ class MLP(object):
 		# split out a validation set if requested
 		if pct_validation <= 0 or pct_validation >= 1:
 			print "pct_validation must be between (0,1), resorting to default"
-			pct_validation = .25
-
+			pct_validation = 0.1
 		splits = split_validation(y, pct_validation)
 		x_train = x[:, splits['train']]
 		y_train = y[:, splits['train']]
 		x_valid = x[:, splits['validation']]
 		y_valid = y[:, splits['validation']]
 
-		# determine number of batches to run for each epoch (if SGD requested)
+		# determine number of batches to run for each epoch (if mini-batch requested)
 		num_obs = x_train.shape[1]
 		if batch_size is None:
 			# simply define batch size to be the whole set
@@ -76,9 +78,9 @@ class MLP(object):
 		# begin training
 		previous_score = -np.inf
 		stall_count = 0
-		stall_limit = int(math.floor(epochs/10))
+		stall_limit = int(math.floor(epochs/10)) if stall_limit is None else stall_limit
 		for i in range(epochs):
-			# if SGD requested, select a random subset of points to train on
+			# if mini-batch requested, select a subset of points to train on
 			for batch in range(num_batches):
 				start = batch * batch_size
 				end = min(num_obs, (batch + 1) * batch_size)
@@ -88,7 +90,7 @@ class MLP(object):
 			logging.info("Epoch %d:" % i)
 			logging.info("Loss = %f" % loss)
 			logging.info("Train Accuracy = %f" % train_score)
-			logging.info("Validation Accuracy = %f\n" % valid_score)
+			logging.info("Valid Accuracy = %f\n" % valid_score)
 
 			score_dif = valid_score - previous_score
 			if score_dif < 0.01:
@@ -101,7 +103,7 @@ class MLP(object):
 				logging.info("Epoch %d:" % i)
 				logging.info("Loss = %f" % loss)
 				logging.info("Train Accuracy = %f" % train_score)
-				logging.info("Validation Accuracy = %f\n" % valid_score)
+				logging.info("Valid Accuracy = %f\n" % valid_score)
 				break
 
 	def _fit_partial(self, x, y):
