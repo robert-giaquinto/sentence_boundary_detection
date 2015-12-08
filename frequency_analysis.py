@@ -6,7 +6,7 @@ from collections import Counter
 import time
 
 
-def frequency_analysis(input_path, output_path, stopwords, n_most_common=50):
+def frequency_analysis(input_path, output_path, stopwords=None, n_most_common=50):
 	recipes = []
 	with open(input_path, 'r') as f:
 		for i, line in enumerate(f):
@@ -20,7 +20,8 @@ def frequency_analysis(input_path, output_path, stopwords, n_most_common=50):
 	recipe_words = re.split("\s+", recipe_text)
 	stemmer = SnowballStemmer("english")
 	recipe_stems = [stemmer.stem(w) for w in recipe_words]
-	recipe_stems = filter(None, [s for s in recipe_stems if s not in stopwords])
+	if stopwords is not None:
+		recipe_stems = filter(None, [s for s in recipe_stems if s not in stopwords])
 	top_words = Counter(recipe_stems).most_common(n_most_common)
 
 	# write to a file
@@ -32,10 +33,10 @@ def frequency_analysis(input_path, output_path, stopwords, n_most_common=50):
 	freq_table.close()
 
 
-def get_most_freq():
+def get_most_freq(filename='word_frequencies.csv'):
 	words = []
 	doc_freqs = []
-	with open('/Users/robert/Documents/UMN/5551_Robots/Project/data/word_frequencies.csv', 'r') as f:
+	with open('/Users/robert/Documents/UMN/5551_Robots/Project/data/' + filename, 'r') as f:
 		for line in f:
 			if line == '\n':
 				break
@@ -46,10 +47,18 @@ def get_most_freq():
 
 
 if __name__ == "__main__":
+	# run once and remove stopwords
 	input_path = '/Users/robert/Documents/UMN/5551_Robots/Project/data/recipes.txt'
 	output_path = '/Users/robert/Documents/UMN/5551_Robots/Project/data/word_frequencies.csv'
 	stopwords = ['i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'yo', 'your', 'yours', 'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 'she', 'her', 'hers', 'herself', 'it', 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves', 'what', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 't', 'can', 'will', 'just', 'don', 'should', 'now']
 	start_time = time.time()
-	frequency_analysis(input_path, output_path, stopwords, 100)
+	frequency_analysis(input_path, output_path, stopwords=stopwords, n_most_common=50)
 	end_time = time.time()
-	print "Finished frequency analysis in", round(end_time - start_time, 1), "seconds"
+	print "Finished frequency analysis for non stopwords in", round(end_time - start_time, 1), "seconds"
+
+	# run again and keep stop words
+	output_path = '/Users/robert/Documents/UMN/5551_Robots/Project/data/all_word_frequencies.csv'
+	start_time = time.time()
+	frequency_analysis(input_path, output_path, stopwords=None, n_most_common=50)
+	end_time = time.time()
+	print "Finished frequency analysis for all words in", round(end_time - start_time, 1), "seconds"

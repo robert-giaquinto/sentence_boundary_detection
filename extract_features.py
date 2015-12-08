@@ -114,7 +114,7 @@ def analyze_tokens(string, stopwords, syllable_dict):
 	pct_stop_tokens = 1.0 * num_stop_tokens / num_tokens
 
 	# frequency based features
-	top_words, top_doc_freqs = get_most_freq()
+	top_words, top_doc_freqs = get_most_freq(filename='word_frequencies.csv')
 	any_stats = [int(w in go_tokens) for w in top_words]
 	# tf * idf
 	tfidf_stats = [1.0 * go_tokens.count(w) * 5589 / f for w, f in zip(top_words, top_doc_freqs)]
@@ -130,6 +130,12 @@ def analyze_tokens(string, stopwords, syllable_dict):
 	last_num_chars = len(last)
 	last_syllable_count = num_syllables(last, syllable_dict)
 
+	# frequency based features
+	all_top_words, all_top_doc_freqs = get_most_freq(filename='all_word_frequencies.csv')
+	last_any_stats = [int(w == last) for w in all_top_words]
+	# tf * idf
+	last_tfidf_stats = [1.0 * (last == w) * 5589 / f for w, f in zip(all_top_words, all_top_doc_freqs)]
+
 	feature_names = ["tokens_char_len", "num_tokens", "num_go_tokens", "num_stop_tokens", "pct_stop_tokens",
 		"num_percents", "num_pounds", "num_slashes", "num_dashes",
 		"avg_token_length", "any_numbers", "ct_numbers", "pct_numbers",
@@ -137,11 +143,14 @@ def analyze_tokens(string, stopwords, syllable_dict):
 		"last_is_stopword", "last_num_chars", "last_syllable_count"]
 	feature_names += ['any_' + w for w in top_words]
 	feature_names += ['tfidf_' + w for w in top_words]
+	feature_names += ['last_is_' + w for w in all_top_words]
+	feature_names += ['last_tfidf_' + w for w in all_top_words]
+	# print ','.join(feature_names)
 	rval = [tokens_char_len, num_tokens, num_go_tokens, num_stop_tokens, pct_stop_tokens,
 		num_percents, num_pounds, num_slashes, num_dashes,
 		avg_token_length, any_numbers, ct_numbers, pct_numbers,
 		last_has_number, last_has_percent, last_has_pound, last_has_slash, last_has_dash,
-		last_is_stopword, last_num_chars, last_syllable_count] + any_stats + tfidf_stats
+		last_is_stopword, last_num_chars, last_syllable_count] + any_stats + tfidf_stats + last_any_stats + last_tfidf_stats
 	return rval
 
 
@@ -149,7 +158,7 @@ def extract_features(verbose=False):
 	data_dir = '/Users/robert/Documents/UMN/5551_Robots/Project/data/'
 	token_table = open(data_dir + 'tokens.txt', 'r')
 	training_table = open(data_dir + 'training.csv', 'wb')
-	training_table.write('recipe_key,token_key,target,recipe_char_len,num_recipe_tokens,proportion_of_recipe,pct_tokens_seen,tokens_char_len,num_tokens,num_go_tokens,num_stop_tokens,pct_stop_tokens,num_percents,num_pounds,num_slashes,num_dashes,avg_token_length,any_numbers,ct_numbers,pct_numbers,last_has_number,last_has_percent,last_has_pound,last_has_slash,last_has_dash,last_is_stopword,last_num_chars,last_syllable_count,any_bring,any_dough,any_oven,any_dish,any_chicken,any_milk,any_sprinkl,any_cut,any_cup,any_lake,any_sugar,any_add,any_spread,any_kingdom,any_brown,any_sourc,any_format,any_beat,any_flour,any_spoon,any_half,any_cook,any_cool,any_recip,any_meat,any_onion,any_sauc,any_small,any_side,any_set,any_hour,any_powder,any_tender,any_bake,any_slice,any_preheat,any_melt,any_larg,any_simmer,any_saucepan,any_pepper,any_water,any_let,any_greas,any_befor,any_dri,any_turn,any_degre,any_place,any_one,any_skillet,any_use,any_top,any_boil,any_butter,any_medium,any_heat,any_warm,any_togeth,any_refriger,any_serv,any_ingredi,any_mc,any_f,any_veget,any_remov,any_smooth,any_pour,any_remain,any_light,any_minut,any_cover,any_high,any_cream,any_chop,any_make,any_bowl,any_mix,any_hot,any_inch,any_you,any_stir,any_roll,any_pan,any_juic,any_oil,any_mixtur,any_possum,any_garlic,any_tomato,any_drain,any_potato,any_egg,any_well,any_salt,any_chees,any_combin,any_time,any_cookbook,any_blend,count_bring,count_dough,count_oven,count_dish,count_chicken,count_milk,count_sprinkl,count_cut,count_cup,count_lake,count_sugar,count_add,count_spread,count_kingdom,count_brown,count_sourc,count_format,count_beat,count_flour,count_spoon,count_half,count_cook,count_cool,count_recip,count_meat,count_onion,count_sauc,count_small,count_side,count_set,count_hour,count_powder,count_tender,count_bake,count_slice,count_preheat,count_melt,count_larg,count_simmer,count_saucepan,count_pepper,count_water,count_let,count_greas,count_befor,count_dri,count_turn,count_degre,count_place,count_one,count_skillet,count_use,count_top,count_boil,count_butter,count_medium,count_heat,count_warm,count_togeth,count_refriger,count_serv,count_ingredi,count_mc,count_f,count_veget,count_remov,count_smooth,count_pour,count_remain,count_light,count_minut,count_cover,count_high,count_cream,count_chop,count_make,count_bowl,count_mix,count_hot,count_inch,count_you,count_stir,count_roll,count_pan,count_juic,count_oil,count_mixtur,count_possum,count_garlic,count_tomato,count_drain,count_potato,count_egg,count_well,count_salt,count_chees,count_combin,count_time,count_cookbook,count_blend\n')
+	training_table.write('recipe_key,token_key,target,recipe_char_len,num_recipe_tokens,proportion_of_recipe,pct_tokens_seen,tokens_char_len,num_tokens,num_go_tokens,num_stop_tokens,pct_stop_tokens,num_percents,num_pounds,num_slashes,num_dashes,avg_token_length,any_numbers,ct_numbers,pct_numbers,last_has_number,last_has_percent,last_has_pound,last_has_slash,last_has_dash,last_is_stopword,last_num_chars,last_syllable_count,any_add,any_minut,any_stir,any_heat,any_bake,any_cook,any_serv,any_mix,any_mixtur,any_water,any_pan,any_sugar,any_butter,any_salt,any_place,any_cup,any_egg,any_bowl,any_flour,any_cover,any_combin,any_use,any_well,any_remov,any_oven,any_sauc,any_pepper,any_top,any_onion,any_boil,any_oil,any_brown,any_pour,any_ingredi,any_cream,any_chees,any_larg,any_beat,any_chicken,any_cool,any_remain,any_make,any_hour,any_cut,any_inch,any_degre,any_medium,any_hot,any_sprinkl,any_mc,tfidf_add,tfidf_minut,tfidf_stir,tfidf_heat,tfidf_bake,tfidf_cook,tfidf_serv,tfidf_mix,tfidf_mixtur,tfidf_water,tfidf_pan,tfidf_sugar,tfidf_butter,tfidf_salt,tfidf_place,tfidf_cup,tfidf_egg,tfidf_bowl,tfidf_flour,tfidf_cover,tfidf_combin,tfidf_use,tfidf_well,tfidf_remov,tfidf_oven,tfidf_sauc,tfidf_pepper,tfidf_top,tfidf_onion,tfidf_boil,tfidf_oil,tfidf_brown,tfidf_pour,tfidf_ingredi,tfidf_cream,tfidf_chees,tfidf_larg,tfidf_beat,tfidf_chicken,tfidf_cool,tfidf_remain,tfidf_make,tfidf_hour,tfidf_cut,tfidf_inch,tfidf_degre,tfidf_medium,tfidf_hot,tfidf_sprinkl,tfidf_mc,last_is_and,last_is_the,last_is_in,last_is_to,last_is_a,last_is_with,last_is_until,last_is_add,last_is_minut,last_is_of,last_is_for,last_is_stir,last_is_or,last_is_on,last_is_heat,last_is_into,last_is_bake,last_is_cook,last_is_over,last_is_serv,last_is_mix,last_is_mixtur,last_is_water,last_is_pan,last_is_sugar,last_is_butter,last_is_about,last_is_at,last_is_salt,last_is_is,last_is_place,last_is_cup,last_is_egg,last_is_bowl,last_is_flour,last_is_cover,last_is_from,last_is_combin,last_is_use,last_is_well,last_is_remov,last_is_oven,last_is_sauc,last_is_pepper,last_is_top,last_is_onion,last_is_boil,last_is_oil,last_is_it,last_is_brown,last_tfidf_and,last_tfidf_the,last_tfidf_in,last_tfidf_to,last_tfidf_a,last_tfidf_with,last_tfidf_until,last_tfidf_add,last_tfidf_minut,last_tfidf_of,last_tfidf_for,last_tfidf_stir,last_tfidf_or,last_tfidf_on,last_tfidf_heat,last_tfidf_into,last_tfidf_bake,last_tfidf_cook,last_tfidf_over,last_tfidf_serv,last_tfidf_mix,last_tfidf_mixtur,last_tfidf_water,last_tfidf_pan,last_tfidf_sugar,last_tfidf_butter,last_tfidf_about,last_tfidf_at,last_tfidf_salt,last_tfidf_is,last_tfidf_place,last_tfidf_cup,last_tfidf_egg,last_tfidf_bowl,last_tfidf_flour,last_tfidf_cover,last_tfidf_from,last_tfidf_combin,last_tfidf_use,last_tfidf_well,last_tfidf_remov,last_tfidf_oven,last_tfidf_sauc,last_tfidf_pepper,last_tfidf_top,last_tfidf_onion,last_tfidf_boil,last_tfidf_oil,last_tfidf_it,last_tfidf_brown\n')
 
 	prev_recipe_key = ''
 	for i, token_line in enumerate(token_table):
@@ -166,7 +175,8 @@ def extract_features(verbose=False):
 
 		if recipe_key != prev_recipe_key:
 			# found a new recipe
-			print "Onto recipe:", recipe_key
+			if verbose:
+				print "Onto recipe:", recipe_key
 			recipe = lookup_recipe(recipe_key, data_dir)
 			recipe_features = analyze_recipe(recipe)
 
@@ -187,7 +197,7 @@ def extract_features(verbose=False):
 
 if __name__ == "__main__":
 	start_time = time.time()
-	num_obs = extract_features(verbose=True)
+	num_obs = extract_features(verbose=False)
 	end_time = time.time()
 	print "Run time:", round((end_time - start_time)/60, 1), "minutes"
 	print "finished running, extracted features for", num_obs, "files"

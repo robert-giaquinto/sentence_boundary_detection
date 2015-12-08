@@ -27,12 +27,12 @@ class MLP(object):
 			random_state = np.random.RandomState(123)
 
 		# define the activation function used between input and hidden layers
-		if self.activation == "sigmoid":
-			activation_func = sigmoid
-			d_activation_func = d_sigmoid
-		elif self.activation == "tanh":
+		if self.activation == "tanh":
 			activation_func = np.tanh
 			d_activation_func = d_tanh
+		elif self.activation == "sigmoid":
+			activation_func = sigmoid
+			d_activation_func = d_sigmoid
 
 		num_layers = len(architecture)
 		for i in range(num_layers)[::-1]:
@@ -58,14 +58,18 @@ class MLP(object):
 		self._initialize_layers(architecture)
 
 		# split out a validation set if requested
-		if pct_validation <= 0 or pct_validation >= 1:
+		if pct_validation < 0 or pct_validation >= 1:
 			print "pct_validation must be between (0,1), resorting to default"
-			pct_validation = 0.1
-		splits = split_validation(y, pct_validation)
-		x_train = x[:, splits['train']]
-		y_train = y[:, splits['train']]
-		x_valid = x[:, splits['validation']]
-		y_valid = y[:, splits['validation']]
+			return 0
+		elif pct_validation == 0:
+			x_train = x
+			y_train = y
+		else:
+			splits = split_validation(y, pct_validation)
+			x_train = x[:, splits['train']]
+			y_train = y[:, splits['train']]
+			x_valid = x[:, splits['validation']]
+			y_valid = y[:, splits['validation']]
 
 		# determine number of batches to run for each epoch (if mini-batch requested)
 		num_obs = x_train.shape[1]
@@ -87,23 +91,31 @@ class MLP(object):
 				loss = self._fit_partial(x_train[:, start:end], y_train[:, start:end])
 			train_score = self.score(x_train, y_train)
 			valid_score = self.score(x_valid, y_valid)
-			logging.info("Epoch %d:" % i)
+			logging.info("\nEpoch %d:" % i)
 			logging.info("Loss = %f" % loss)
 			logging.info("Train Accuracy = %f" % train_score)
-			logging.info("Valid Accuracy = %f\n" % valid_score)
+			if pct_validation > 0:
+				logging.info("Valid Accuracy = %f" % valid_score)
+				score_dif = valid_score - previous_score
+			else:
+				score_dif = train_score - previous_score
 
-			score_dif = valid_score - previous_score
+			# determine if performance is stalling out
 			if score_dif < 0.01:
 				stall_count += 1
 			else:
 				stall_count = 0
-				previous_score = valid_score
+				if pct_validation > 0:
+					previous_score = valid_score
+				else:
+					previous_score = train_score
 			if stall_count > stall_limit:
-				logging.info("STOP EARLY, no improvement in %s epochs" % stall_limit)
+				logging.info("\nSTOP EARLY, no improvement in %s epochs" % stall_limit)
 				logging.info("Epoch %d:" % i)
 				logging.info("Loss = %f" % loss)
 				logging.info("Train Accuracy = %f" % train_score)
-				logging.info("Valid Accuracy = %f\n" % valid_score)
+				if pct_validation > 0:
+					logging.info("Valid Accuracy = %f" % valid_score)
 				break
 
 	def _fit_partial(self, x, y):
