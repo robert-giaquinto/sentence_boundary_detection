@@ -26,6 +26,11 @@ for recipe_type in filenames:
 		recipe_lines = f.readlines()
 
 	recipe_txt = ' '.join(recipe_lines)
+	# some recipes separate commands with semicolon, convert to conventional sentence
+	callback = lambda pat: '. ' + pat.group(1).upper()
+	recipe_txt = re.sub('(?i)[;]\s*([a-z])', callback, recipe_txt)
+	# remove some punctuation that can through off sentence parsing
+	recipe_txt = re.sub('["\(\)<>]', ' ', recipe_txt)
 	split_recipes = [r.strip() for r in recipe_txt.split('* Exported from MasterCook *\r\n \r\n')]
 	split_recipes = filter(None, split_recipes)
 
@@ -53,15 +58,16 @@ for recipe_type in filenames:
 		recipe_table.write(str(recipe_key) + '\t' + re.sub('[^a-z0-9\-/ ]', '', instructions.lower()).strip() + '\n')
 
 		# begin splitting recipe into its sentences
-		sentences = filter(None, [s.strip() for s in re.split('(?<=(?<![0-9])[.!?])(\s+)(?=[A-Z0-9])', instructions)])
+		# sentences = filter(None, [s.strip() for s in re.split('(?<=(?<![0-9])[.!?])(\s+)(?=[A-Z0-9])', instructions)])
+		sentences = filter(None, [s.strip() for s in re.split('(?i)(?<=(?<![0-9])[.!?])(\s+)(?=[A-Z0-9])', instructions)])
 		prev_tokens = []
 		for sentence_text in sentences:
 			tokens = filter(None, [re.sub('[^a-z0-9\-/]', '', w.lower()).strip() for w in re.split('\s+', sentence_text)])
 			num_tokens = len(tokens)
 
 			# write out a short incomplete sentence (if it meets requirements
-			if len(tokens) > 3 and random.random() < 0.37: # prob chose to create a balanced target class
-				t = random.sample(xrange(1, len(tokens)), 1)[0]
+			if len(tokens) > 3:
+				t = random.sample(xrange(2, len(tokens)), 1)[0]
 				token_key += 1
 				target = 0
 				target_count += 1
@@ -83,18 +89,18 @@ for recipe_type in filenames:
 				str(token_in_recipe_start) +'\t'+ str(token_in_recipe_end) +'\t'+ str(len(tokens)) +'\n')
 
 			# include 1 extra long sentence continuing off last sentence if possible
-			if recipe_key == prev_recipe_key and len(prev_tokens) > 0 and len(tokens) > 1 and random.random() < 0.75:
-				# write out
-				token_key += 1
-				target = 0
-				target_count += 1
-				t = random.sample(xrange(1, len(tokens)), 1)[0]
-				out_tokens = prev_tokens + tokens[0:t]
-				token_in_recipe_start = cumulative_token_ct
-				token_in_recipe_end = cumulative_token_ct + len(out_tokens)
-				token_table.write(str(recipe_key) +'\t'+ str(token_key) +'\t'+
-								  str(target) +'\t'+ ' '.join(out_tokens) +'\t'+
-								  str(token_in_recipe_start) +'\t'+ str(token_in_recipe_end) +'\t'+ str(len(out_tokens)) +'\n')
+			# if recipe_key == prev_recipe_key and len(prev_tokens) > 0 and len(tokens) > 1 and random.random() < 0.75:
+			# 	# write out
+			# 	token_key += 1
+			# 	target = 0
+			# 	target_count += 1
+			# 	t = random.sample(xrange(1, len(tokens)), 1)[0]
+			# 	out_tokens = prev_tokens + tokens[0:t]
+			# 	token_in_recipe_start = cumulative_token_ct
+			# 	token_in_recipe_end = cumulative_token_ct + len(out_tokens)
+			# 	token_table.write(str(recipe_key) +'\t'+ str(token_key) +'\t'+
+			# 					  str(target) +'\t'+ ' '.join(out_tokens) +'\t'+
+			# 					  str(token_in_recipe_start) +'\t'+ str(token_in_recipe_end) +'\t'+ str(len(out_tokens)) +'\n')
 
 			cumulative_token_ct += num_tokens
 			prev_recipe_key = recipe_key
